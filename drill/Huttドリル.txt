@@ -10,17 +10,32 @@ Hutt キャッチアップドリル[100]
     1 - 20 Unix基礎コマンドドリル
    21 -100 Unix応用コマンドドリル
 
+-配付資料
+
+	./data/
+		ドリルに利用する顧客データと購買データが入っています。
+	./app/
+		ドリルに利用するBashコマンドが入っています。
+
+
 -Contents
 
 [0] 
 
+	はじめにやること！
+	・ドリルコマンドをパスに刺すこと。
+	例
+	export $PATH:/home/user/app/
+	
+	
 	強制コマンド停止	CTRL+C
 	Bashコマンド補完	Tab連打！
 	文字列はダブルクオート「"｣で囲む
 	コマンド -hでヘルプが表示されます
 
 
-[1] echo,catでBashのデータの取扱を学ぼう
+
+[1] echo,catでBashのデータの取扱を学ぶ
 
 	# Hello World!を表示
 	echo "Hello World!"
@@ -57,49 +72,53 @@ Hutt キャッチアップドリル[100]
 	kokyaku.dataにkokyakyu_royal.dataとkokyaku_rank3.dataを追加してください
 	
 	[解答]
-	cat kokyaku.data kokyaku_add.data >> kokyaku.data
+	cat kokyaku_add.data kokyaku_royal.data >> kokyaku.data
+	cat kokyaku.dataで中身を確認してみてねください。
 	
 [3] ファイルから文字を探す
 
 	# 探すコマンドはgrep
-	cat kokyaku.dat | grep Musk
+	cat kokyaku.data | grep Musk
 	
 	※「|」・・・これはパイプ。処理を繋げるUnixコマンド。ファイルを開いた中身をgrepに渡すことができます。
 	
+	# こんな書き方もあります
+	grep Musk kokyaku.data
+	
 	[問題]
-	kokyaku.datから女性(Women)だけを抽出してください
+	kokyaku.dataから女性(Women)だけを抽出してください
 	
 	[解答]
-	cat kokyaku.dat | grep Women
+	cat kokyaku.data | grep Women
 	
-[4] テキスト一括置換
+	
+[4] テキストデータを一括置換する
 	
 	# tel_no(電話番号)のハイフンを取り除く必要があるときはsedを使います
-	cat kokyaku.dat | sed 's/-//g'
+	cat kokyaku.data | sed 's/-//g'
 	# 一回しか置換しない場合はgを外す
-	cat kokyaku.dat | sed 's/-//'
+	cat kokyaku.data | sed 's/-//'
 	
 	[問題]
-	kokyaku.datの性別を日本語に変換してkokyaku_jp.datを作成してください
+	kokyaku.dataの性別を日本語に変換してkokyaku_jp_sex.dataを作成してください
 	
 	[解答]
-	cat kokyaku.dat | sed 's/Man/男/g' | sed 's/Women/女/g' > kokyaku_jp.dat
+	cat kokyaku.data | sed 's/Man/男/g' | sed 's/Women/女/g' > kokyaku_jp_sex.data
+	cat kokyaku_jp_sex.data
+	
+	[解説]
+	パイプが複数個出てくるようになりました。
+	解答はワンライナーでコマンドを書いていますが、
+	こういう風に書くこともあります。
+	cat kokyaku.data  |
+	sed 's/Man/男/g'  | 
+	sed 's/Women/女/g' > kokyaku_jp_sex.data
+	
 	
 [5] テキストの特定の項目だけ抽出する
 
-	# tawk(ヘッダー指定可能awk)を使って顧客IDと名前だけを抜く
-	cat kokyaku.dat | tawk '{print %kokyaku_id,%name}'
-	
-	kokyaku_id name tel_no sex age address
-	100000 Bezos
-	100001 Musk
-	100002 Son
-	200000 Marissa
-	200001 Sheryl
-	200002 Whitman
-	
-	# ヘッダーを指定した項目だけにしたい時はhsawkを使う
-	cat kokyaku.dat | hsawk '{print %kokyaku_id,%name}'
+	# awkを使って顧客IDと名前だけを抜く
+	cat kokyaku.data | awk '{print $1,$2}'
 	
 	kokyaku_id name
 	100000 Bezos
@@ -108,24 +127,51 @@ Hutt キャッチアップドリル[100]
 	200000 Marissa
 	200001 Sheryl
 	200002 Whitman
+	300000 Nanba
+	300001 William
+	
+	# awkは半角スペースをデフォルトの区切り文字にしています。
+	# $0は1行すべて、$1は1つ目のフィールド、$2は2つ目のフィールドというような指定ができます。
+	
+	# ヘッダーなしでデータだけ抜きたい場合はtailを使います
+	tail -n +2 kokyaku.data | awk '{print $1,$2}'
+	
+	100000 Bezos
+	100001 Musk
+	100002 Son
+	200000 Marissa
+	200001 Sheryl
+	200002 Whitman
+	300000 Nanba
+	300001 William
+	
+	# 逆にヘッダーだけを抜きたい場合はheadを使います
+	head -1 kokyaku.data
 	
 	[問題]
 	分析用に顧客IDと年齢性別だけを出力してください
 	
 	[解答]
-	cat kokyaku.dat | hsawk '{print %kokyaku_id,%sex,%age}'
+	cat kokyaku.data | awk '{print $1,$4,$5}' > kokyaku_analyze.data
 	
-[6] 項目を指定して条件文を作る
+[6] 抜きたいデータを条件文で抜く
 
 	# 顧客データから40歳代の情報だけ抜く
-	cat kokyaku.dat | tawk 'if(%age >= 40 && %age < 50){ print $0 }'
-	※print $0で項目を指定せずにすべての項目出力になります。
+	# ここからはドリル用のコマンドを利用するのでパス指定が必須です。
+	# tawkはawkの$1､$2のような可読性の悪さを解決し、フィールド指定を可能にしたコマンドです。
+	cat kokyaku.data | tawk 'if(%age >= 40 && %age < 50){ print }'
+	※print 何も指定しないとすべての項目出力になります。
+	
+	kokyaku_id name tel_no sex age address
+	100001 Musk 080-8765-4321 Man 43 LosAngels
+	200001 Sheryl 090-8765-4321 Women 45 Washington
 	
 	# さらに40歳代の顧客IDの先頭を9始まりに置換します
-	cat kokyaku.dat | tawk 'if(%age >= 40 && %age < 50){ gsub(/^[0-9]/,9,%kokyaku_id); print $0}'
+	# gsubはawkの関数で、正規表現置換が利用できます
+	cat kokyaku.data | tawk 'if(%age >= 40 && %age < 50){ gsub(/^[0-9]/,9,%kokyaku_id); print $0}'
 	
 	# そろそろワンライナーの限界・・・こうやってインデントしても書けます
-	cat kokyaku.dat |
+	cat kokyaku.data |
 	tawk '
 		if(%age >= 40 && %age < 50){
 			gsub(/^[0-9]/,9,%kokyaku_id);
@@ -138,29 +184,8 @@ Hutt キャッチアップドリル[100]
 	
 	
 	[解答]
-	cat kokyaku.dat | tawk 'if(%sex == "Women" && %age >= 35 && %age <= 49){print $0}'
-	
-
-[21] データベースから顧客データを取得する TODO:スクリプト作成
-
-	# hsdbselコマンドでDBからデータを取得する
-	# hsdbsel "項目名" "テーブル名" "where条件"
-	hsdbsel "kokyaku_no,kokyaku_name_kj" "v_kokyaku_basic" "kokyaku_no='3491847597'"
-	
-	# SQLのwhere句なしでlimit句を書きたい時 1=1でwhere句をスキップさせます
-	hsdbsel "kokyaku_no,kokyaku_name_kj" "v_kokyaku_basic" "1=1 limit 10"
+	cat kokyaku.data | tawk 'if(%sex == "Women" && %age >= 35 && %age <= 49){print $0}'
 	
 	
-[22]
-
-
-[23]
-
-
-[24]
-
-[25]
-
-[26]
-	
-[51] 
+[7] 
+ 

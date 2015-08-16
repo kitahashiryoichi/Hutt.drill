@@ -1,0 +1,203 @@
+#!/bin/bash
+#
+# tawk
+#
+# Written by Koo.Tabei
+
+# Ver.1.0.1
+#  リリース
+# Ver.1.0.2
+#  -aオプション追加
+# Ver.1.0.3
+#  -b -eオプション追加
+
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+# 初期設定
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+
+# usageを示す関数
+function USAGE() {
+  echo "Usage   : $(basename $0) [-t] [-c] "col1,col2..." "awkScript"" 1>&2
+  echo 'Version : 1.0.3' 1>&2
+  echo 'Written by Koo.Tabei' 1>&2
+}
+
+tmp="/tmp/tmp.$(basename $0).$$"
+
+noheader=0
+compile=0
+
+
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+# 起動
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+# オプション処理
+while getopts "hc:tab:e:" OPT; do
+case "$OPT" in
+  h)
+        # ヘルプ表示
+        echo "--- $(basename $0) help ---"
+        USAGE
+	cat <<- FIN | more 1>&2
+	
+	<機能>
+	ヘッダ付のままawkの処理ができる。カラムをNoではなくカラム名で指定可能。
+	第１引数：awkスクリプト
+	EX) 
+	 1.
+	 tawk "%col1=%col2*%col3;print \$0"
+	 2.
+	 tawk -c "newcol1" "print \$0,%col1*%col2"
+      
+	<オプション>
+	  h) ヘルプを表示する
+	  t) ヘッダを出力しない
+	  c) 追加されるカラム名を指定する
+	  a) awkをawkaコマンドでコンパイルしてから実行する
+	     ！！注意！！
+	     awkaは古いバージョンのawkを想定して動作するため、
+	     新しいawkで付与された機能が動かないことがあります。
+	     その差がわからなければ、このオプションは使用しないこと！
+	  b) BEGIN内で実行したい処理を指定する
+	  e) END内で実行したい処理を指定する
+	<戻り値>
+	  0:正常終了
+	  2:引数エラー
+	FIN
+        exit 0
+        ;;
+  c)
+        #追加列名をダブルクォートで囲む
+  	newCols=$(echo ${OPTARG} | awk -F ',' '{gsub(" ","");for(i=1; i<=NF; i++){ printf(",\""$i"\"")}}' )
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 1
+  	    ;;
+  t)
+        #ヘッダを出力しないオプション
+ 	noheader=1
+	;;
+  a)
+        #コンパイルオプション
+ 	compile=1
+ 	;;
+  b)
+        #BEGINオプション
+		beginScript="${OPTARG}"
+		[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 1
+	;;
+  e)
+        #ENDオプション
+		endScript="${OPTARG}"
+		[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 1
+	;;
+  \?)
+        # 引数エラー
+        USAGE
+        exit 2
+        ;;
+esac
+done
+
+shift $((OPTIND-1))
+
+if [ -z "$1" ];then
+  echo "パラメタ不備"
+  USAGE
+  exit 2;
+fi
+
+
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+# 変換処理
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+
+if [ -n "$2" ] ; then
+  [ -f "$2" ] || exit 3
+  headString="$(head -n 1 ${2})"
+  stdinput="false"
+else
+  read headString
+  stdinput="true"
+fi
+
+[ -n "$headString" ] || exit 3
+
+if [ "$stdinput" = "true" ]; then
+  echo "$headString"
+  cat
+else
+  cat "$2"
+fi |
+if [ "$compile" != 1 ]; then
+	awk  'BEGIN{'"${beginScript}"' ; }{ if (NR==1 && "'"$noheader"'"!="1"){
+	  print $0'"$newCols"';
+	}else if(NR>1){
+	  '"$(echo "$1" |
+	      awk 'BEGIN{
+	        for(i=1;i<=split("'"$headString"'",hdbuf);i++){
+	          hd[hdbuf[i]]=i;
+	        };
+	        split("'"$(echo "$headString" | tr " " "\n" | awk \{print\ length\(\$1\),\$1\} | sort -nrk 1,1 | awk '{print $2}' | tr "\n" " ")"'",tag);
+	      };
+	      {
+	        for(i=1;i<=length(tag);i++){
+	          if(index($0,"%{"tag[i]"}")){
+	            gsub("%{"tag[i]"}","$"hd[tag[i]]);
+	          }
+	          if(index($0,"%"tag[i])){
+	            gsub("%"tag[i],"$"hd[tag[i]]);
+	          }
+	        };
+	        print $0;
+	      }')"'
+	}}END{'"${endScript}"' ;}'
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+else
+	cat <<- EOF > $tmp-source
+	BEGIN{${beginScript} ;}
+	NR==1 && "$noheader"!="1"{
+	  print \$0$newCols;
+	};
+	NR>1{
+	  $(echo "$1" |
+	    awk 'BEGIN{
+	      for(i=1;i<=split("'"$headString"'",hdbuf);i++){
+	        hd[hdbuf[i]]=i;
+	      };
+	      split("'"$(echo "$headString" | tr " " "\n" | awk \{print\ length\(\$1\),\$1\} | sort -nrk 1,1 | awk '{print $2}' | tr "\n" " ")"'",tag);
+	    };
+	    {
+	      for(i=1;i<=length(tag);i++){
+	        if(index($0,"%{"tag[i]"}")){
+	          gsub("%{"tag[i]"}","$"hd[tag[i]]);
+	        }
+	        if(index($0,"%"tag[i])){
+	          gsub("%"tag[i],"$"hd[tag[i]]);
+	        }
+	      };
+	      print $0;
+	    }')
+	}
+	
+	END{${endScript} ;}
+	EOF
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+
+	awka -f $tmp-source > $tmp-source.c  2>/dev/null
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+	gcc -c $tmp-source.c -I/usr/local/include -O2 -o $tmp-source.o 2>/dev/null
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+	gcc $tmp-source.o -L/usr/local/lib -lawka -lm -O2 -o $tmp-command -static 2>/dev/null
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+
+	$tmp-command
+	[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+fi
+[ $(echo ${PIPESTATUS[@]} | tr " " "+" | bc) -eq 0 ] || exit 3
+
+
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+# 終了
+#_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+rm -f $tmp-*
+exit 0
+

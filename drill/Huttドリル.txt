@@ -1,0 +1,166 @@
+Hutt キャッチアップドリル[100]
+
+-事前知識キャッチアップ課題
+	
+-Scope
+	プログラミング未経験者
+
+-Index
+->	0	   事前知識
+    1 - 20 Unix基礎コマンドドリル
+   21 -100 Unix応用コマンドドリル
+
+-Contents
+
+[0] 
+
+	強制コマンド停止	CTRL+C
+	Bashコマンド補完	Tab連打！
+	文字列はダブルクオート「"｣で囲む
+	コマンド -hでヘルプが表示されます
+
+
+[1] echo,catでBashのデータの取扱を学ぼう
+
+	# Hello World!を表示
+	echo "Hello World!"
+
+	# Hello World!をhogeファイルに保存
+	echo "Hello World!" > hoge
+
+	# hogeファイルを表示
+	cat hoge
+	※echo hogeも試してみてください
+
+	echoは入力をそのまま表示するコマンド
+	catはファイルを開いて表示するコマンド
+	
+	[問題]
+	kokyaku.dataファイルを開いて中身を確認してください
+	
+	[解答]
+	cat kokyaku.data
+
+[2] ファイルの後ろに追記する
+
+	# さっき作ったhogeファイルの後ろにテキストを追記する
+	echo "1 2 3 4 5" >> hoge
+	
+	# hogeファイルを表示
+	cat hoge
+	
+	# catは複数ファイル指定ができます
+	echo "Test data" > hogehoge
+	cat hoge hogehoge
+	
+	[問題]
+	kokyaku.dataにkokyakyu_royal.dataとkokyaku_rank3.dataを追加してください
+	
+	[解答]
+	cat kokyaku.data kokyaku_add.data >> kokyaku.data
+	
+[3] ファイルから文字を探す
+
+	# 探すコマンドはgrep
+	cat kokyaku.dat | grep Musk
+	
+	※「|」・・・これはパイプ。処理を繋げるUnixコマンド。ファイルを開いた中身をgrepに渡すことができます。
+	
+	[問題]
+	kokyaku.datから女性(Women)だけを抽出してください
+	
+	[解答]
+	cat kokyaku.dat | grep Women
+	
+[4] テキスト一括置換
+	
+	# tel_no(電話番号)のハイフンを取り除く必要があるときはsedを使います
+	cat kokyaku.dat | sed 's/-//g'
+	# 一回しか置換しない場合はgを外す
+	cat kokyaku.dat | sed 's/-//'
+	
+	[問題]
+	kokyaku.datの性別を日本語に変換してkokyaku_jp.datを作成してください
+	
+	[解答]
+	cat kokyaku.dat | sed 's/Man/男/g' | sed 's/Women/女/g' > kokyaku_jp.dat
+	
+[5] テキストの特定の項目だけ抽出する
+
+	# tawk(ヘッダー指定可能awk)を使って顧客IDと名前だけを抜く
+	cat kokyaku.dat | tawk '{print %kokyaku_id,%name}'
+	
+	kokyaku_id name tel_no sex age address
+	100000 Bezos
+	100001 Musk
+	100002 Son
+	200000 Marissa
+	200001 Sheryl
+	200002 Whitman
+	
+	# ヘッダーを指定した項目だけにしたい時はhsawkを使う
+	cat kokyaku.dat | hsawk '{print %kokyaku_id,%name}'
+	
+	kokyaku_id name
+	100000 Bezos
+	100001 Musk
+	100002 Son
+	200000 Marissa
+	200001 Sheryl
+	200002 Whitman
+	
+	[問題]
+	分析用に顧客IDと年齢性別だけを出力してください
+	
+	[解答]
+	cat kokyaku.dat | hsawk '{print %kokyaku_id,%sex,%age}'
+	
+[6] 項目を指定して条件文を作る
+
+	# 顧客データから40歳代の情報だけ抜く
+	cat kokyaku.dat | tawk 'if(%age >= 40 && %age < 50){ print $0 }'
+	※print $0で項目を指定せずにすべての項目出力になります。
+	
+	# さらに40歳代の顧客IDの先頭を9始まりに置換します
+	cat kokyaku.dat | tawk 'if(%age >= 40 && %age < 50){ gsub(/^[0-9]/,9,%kokyaku_id); print $0}'
+	
+	# そろそろワンライナーの限界・・・こうやってインデントしても書けます
+	cat kokyaku.dat |
+	tawk '
+		if(%age >= 40 && %age < 50){
+			gsub(/^[0-9]/,9,%kokyaku_id);
+			print $0;
+		}
+	'
+	
+	[問題]
+	ターゲット顧客の35歳～49歳の女性を抽出してください
+	
+	
+	[解答]
+	cat kokyaku.dat | tawk 'if(%sex == "Women" && %age >= 35 && %age <= 49){print $0}'
+	
+
+[21] データベースから顧客データを取得する TODO:スクリプト作成
+
+	# hsdbselコマンドでDBからデータを取得する
+	# hsdbsel "項目名" "テーブル名" "where条件"
+	hsdbsel "kokyaku_no,kokyaku_name_kj" "v_kokyaku_basic" "kokyaku_no='3491847597'"
+	
+	# SQLのwhere句なしでlimit句を書きたい時 1=1でwhere句をスキップさせます
+	hsdbsel "kokyaku_no,kokyaku_name_kj" "v_kokyaku_basic" "1=1 limit 10"
+	
+	
+[22]
+
+
+[23]
+
+
+[24]
+
+[25]
+
+[26]
+	
+[51] 
